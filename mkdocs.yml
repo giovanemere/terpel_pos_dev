@@ -1,0 +1,112 @@
+site_name: Documentación Terpel POS - Transición
+site_description: Documentación técnica completa del ecosistema Terpel POS en transición
+site_author: Equipo Terpel POS
+site_url: https://terpel-pos-docs.com
+
+# Repository
+repo_name: terpel/terpel_pos_dev
+repo_url: https://github.com/terpel/terpel_pos_dev
+
+# Configuration
+theme:
+  name: material
+  language: es
+  palette:
+    - scheme: default
+      primary: red
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Cambiar a modo oscuro
+    - scheme: slate
+      primary: red
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Cambiar a modo claro
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+
+# Navigation
+nav:
+  - Inicio: index.md
+  - Arquitectura:
+    - Visión General: arquitectura/vision-general.md
+    - Diagrama de Componentes: arquitectura/diagrama-componentes.md
+    - Flujos de Datos: arquitectura/flujos-datos.md
+  - Microservicios Backend:
+    - Sincronización Jornadas: microservicios/ms-pos-sincronizacion-jornadas.md
+    - Sincronización Ventas: microservicios/ms-pos-sincronizacion-sales.md
+    - Sincronización Anulaciones: microservicios/ms-pos-sincronizacion-anulaciones.md
+    - Sincronizador Turnos HO: microservicios/ms-pos-sincronizador-turnos-ho.md
+    - Sync Cierre Turno: microservicios/ms-pos-sync-cierre-turno.md
+    - Microcierre Backend: microservicios/ms-pos-microcierrebackend.md
+    - Synchronizer POS Web: microservicios/ms-pos-synchronizer-pos-web.md
+    - Node Turnos: microservicios/ms-pos-node-turnos.md
+  - ETL y Procesamiento:
+    - ETL Ventas: etl/ms-ho-etl-ventas.md
+    - ETL Venta Histórica: etl/ms-ho-etl-venta-historica.md
+  - APIs Frontend:
+    - Frontal Node Ventas: apis/ms-ho-frontal-node-ventas.md
+    - Frontal Node Cierres: apis/ms-ho-frontal-node-cierres.md
+    - Frontal Node Anulación: apis/ms-ho-frontal-node-anulacion.md
+  - Frontend:
+    - Microcierre Frontend: frontend/ft-pos-microcierrefront.md
+  - Servicios Auxiliares:
+    - Conciliación Medios Pago: servicios/ms-conciliacion-medios-pago.md
+  - Despliegue:
+    - CI/CD: despliegue/cicd.md
+    - Configuración Azure: despliegue/azure-config.md
+    - Variables de Entorno: despliegue/variables-entorno.md
+  - Estado del Proyecto:
+    - Roadmap: estado/roadmap.md
+    - Issues Conocidos: estado/issues.md
+    - Plan de Migración: estado/plan-migracion.md
+
+# Plugins
+plugins:
+  - search:
+      lang: es
+
+# Extra JavaScript
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js
+  - javascripts/mermaid-init.js
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/terpel
+    - icon: fontawesome/solid/globe
+      link: https://terpel.com
+  version:
+    provider: mike
+
+# Development server
+dev_addr: '127.0.0.1:3576'
