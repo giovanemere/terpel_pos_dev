@@ -6,6 +6,23 @@
 
 Este repositorio contiene el ecosistema completo de aplicaciones Terpel POS en proceso de transición hacia una arquitectura de microservicios moderna. El proyecto incluye múltiples componentes que trabajan en conjunto para gestionar las operaciones de punto de venta en las estaciones de servicio Terpel.
 
+## 📂 Repositorios
+
+El proyecto está disponible en dos repositorios:
+
+### Repositorio Principal - Azure DevOps
+- **URL**: https://periferiaitgrouptfs.visualstudio.com/TERPEL/_git/terpel_dev
+- **Propósito**: Repositorio oficial para desarrollo y despliegue
+- **Acceso**: Equipo Terpel con credenciales corporativas
+
+### Repositorio Espejo - GitHub
+- **URL**: https://github.com/giovanemere/terpel_pos_dev
+- **Propósito**: Repositorio de respaldo y colaboración externa
+- **Acceso**: Público para consulta
+
+### Sincronización
+Los cambios se sincronizan entre ambos repositorios. El repositorio de Azure DevOps es la fuente de verdad para el desarrollo activo.
+
 ## 🏗️ Arquitectura del Sistema
 
 El ecosistema está compuesto por:
