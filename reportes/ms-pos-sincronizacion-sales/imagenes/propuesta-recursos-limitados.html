@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta POS - Recursos Limitados y Conectividad Intermitente</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .header { background: #1e3a8a; color: white; padding: 20px; text-align: center; }
+        .section { margin: 20px 0; padding: 15px; border-left: 4px solid #3b82f6; }
+        .propuesta { background: #f8fafc; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .beneficio { background: #dcfce7; padding: 10px; margin: 5px 0; border-radius: 3px; }
+        .implementacion { background: #fef3c7; padding: 10px; margin: 5px 0; border-radius: 3px; }
+        .codigo { background: #f1f5f9; padding: 10px; font-family: monospace; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .prioridad-alta { color: #dc2626; font-weight: bold; }
+        .prioridad-media { color: #ea580c; font-weight: bold; }
+        .prioridad-baja { color: #16a34a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Propuesta de Optimización</h1>
+        <h2>POS con Recursos Limitados y Conectividad Intermitente</h2>
+        <p>Microservicio: ms-pos-sincronizacion-sales</p>
+    </div>
+
+    <div class="section">
+        <h2>📋 Resumen Ejecutivo</h2>
+        <p>Propuestas específicas para optimizar el rendimiento del microservicio en entornos POS con limitaciones de hardware y conectividad inestable, manteniendo la funcionalidad crítica del negocio.</p>
+        
+        <table>
+            <tr>
+                <th>Aspecto</th>
+                <th>Situación Actual</th>
+                <th>Propuesta</th>
+                <th>Impacto</th>
+            </tr>
+            <tr>
+                <td>Memoria RAM</td>
+                <td>512MB - 1GB disponible</td>
+                <td>Optimización a 256MB</td>
+                <td class="prioridad-alta">Alto</td>
+            </tr>
+            <tr>
+                <td>Conectividad</td>
+                <td>Intermitente 2G/3G</td>
+                <td>Modo offline + sync</td>
+                <td class="prioridad-alta">Alto</td>
+            </tr>
+            <tr>
+                <td>Almacenamiento</td>
+                <td>HDD limitado</td>
+                <td>SQLite + compresión</td>
+                <td class="prioridad-media">Medio</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Propuesta 1: Arquitectura Ligera con SQLite</h2>
+        <div class="propuesta">
+            <h3>Descripción</h3>
+            <p>Migración de PostgreSQL a SQLite para reducir overhead de memoria y simplificar la gestión de datos.</p>
+            
+            <div class="beneficio">
+                <strong>Beneficios:</strong>
+                <ul>
+                    <li>Reducción de memoria: 80-90% menos uso de RAM</li>
+                    <li>Sin dependencias externas de BD</li>
+                    <li>Arranque instantáneo del servicio</li>
+                    <li>Backup automático por archivo</li>
+                </ul>
+            </div>
+
+            <div class="implementacion">
+                <strong>Implementación:</strong>
+                <div class="codigo">
+// package.json - Dependencias mínimas
+{
+  "dependencies": {
+    "sqlite3": "^5.1.6",
+    "better-sqlite3": "^8.7.0",
+    "compression": "^1.7.4"
+  }
+}
+
+// config/database.lite.js
+const Database = require('better-sqlite3');
+const path = require('path');
+
+class LiteDatabase {
+  constructor() {
+    this.db = new Database(path.join(__dirname, '../data/sales.db'));
+    this.initTables();
+  }
+
+  initTables() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pos_id TEXT NOT NULL,
+        sale_data TEXT NOT NULL,
+        sync_status INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        synced_at DATETIME NULL
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_sync_status ON sales(sync_status);
+      CREATE INDEX IF NOT EXISTS idx_pos_id ON sales(pos_id);
+    `);
+  }
+}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 Propuesta 2: Sistema de Sincronización Offline-First</h2>
+        <div class="propuesta">
+            <h3>Descripción</h3>
+            <p>Implementación de un sistema que funciona completamente offline y sincroniza cuando hay conectividad.</p>
+            
+            <div class="beneficio">
+                <strong>Beneficios:</strong>
+                <ul>
+                    <li>Operación continua sin internet</li>
+                    <li>Sincronización inteligente por lotes</li>
+                    <li>Compresión de datos para transferencia</li>
+                    <li>Retry automático con backoff exponencial</li>
+                </ul>
+            </div>
+
+            <div class="implementacion">
+                <strong>Implementación:</strong>
+                <div class="codigo">
+// services/offline-sync.service.js
+class OfflineSyncService {
+  constructor() {
+    this.syncQueue = [];
+    this.isOnline = false;
+    this.syncInterval = null;
+  }
+
+  // Almacenar venta offline
+  async storeSaleOffline(saleData) {
+    const compressedData = this.compressData(saleData);
+    
+    await this.db.prepare(`
+      INSERT INTO sales (pos_id, sale_data, sync_status)
+      VALUES (?, ?, 0)
+    `).run(saleData.posId, compressedData);
+    
+    // Intentar sync inmediato si hay conexión
+    if (this.isOnline) {
+      this.syncPendingSales();
+    }
+  }
+
+  // Sincronización por lotes
+  async syncPendingSales() {
+    const pendingSales = await this.db.prepare(`
+      SELECT * FROM sales WHERE sync_status = 0 LIMIT 50
+    `).all();
+
+    if (pendingSales.length === 0) return;
+
+    try {
+      const batch = pendingSales.map(sale => ({
+        id: sale.id,
+        data: this.decompressData(sale.sale_data)
+      }));
+
+      await this.sendBatchToServer(batch);
+      
+      // Marcar como sincronizadas
+      const ids = pendingSales.map(s => s.id);
+      await this.markAsSynced(ids);
+      
+    } catch (error) {
+      console.log('Sync failed, will retry later');
+      this.scheduleRetry();
+    }
+  }
+
+  compressData(data) {
+    return JSON.stringify(data); // Implementar compresión real
+  }
+}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>⚡ Propuesta 3: Optimización de Memoria y CPU</h2>
+        <div class="propuesta">
+            <h3>Descripción</h3>
+            <p>Configuraciones específicas para minimizar el uso de recursos del sistema.</p>
+            
+            <div class="beneficio">
+                <strong>Beneficios:</strong>
+                <ul>
+                    <li>Uso de memoria < 64MB</li>
+                    <li>CPU usage < 5% en idle</li>
+                    <li>Arranque en < 3 segundos</li>
+                    <li>Garbage collection optimizado</li>
+                </ul>
+            </div>
+
+            <div class="implementacion">
+                <strong>Implementación:</strong>
+                <div class="codigo">
+// package.json - Scripts optimizados
+{
+  "scripts": {
+    "start:lite": "node --max-old-space-size=64 --gc-interval=100 src/main.lite.js"
+  }
+}
+
+// src/main.lite.js
+const express = require('express');
+const compression = require('compression');
+
+class LitePOSService {
+  constructor() {
+    this.app = express();
+    this.setupMiddleware();
+    this.setupRoutes();
+  }
+
+  setupMiddleware() {
+    // Compresión para reducir transferencia
+    this.app.use(compression({ level: 9 }));
+    
+    // Límites estrictos
+    this.app.use(express.json({ limit: '1mb' }));
+    
+    // Pool de conexiones mínimo
+    this.connectionPool = { max: 2, min: 1 };
+  }
+
+  setupRoutes() {
+    // Solo endpoints esenciales
+    this.app.post('/sales', this.handleSale.bind(this));
+    this.app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  }
+
+  async handleSale(req, res) {
+    try {
+      // Validación mínima
+      if (!req.body.posId || !req.body.items) {
+        return res.status(400).json({ error: 'Invalid data' });
+      }
+
+      // Procesamiento asíncrono
+      setImmediate(() => {
+        this.syncService.storeSaleOffline(req.body);
+      });
+
+      res.json({ success: true, queued: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  }
+}
+
+// Configuración de memoria
+process.on('warning', (warning) => {
+  if (warning.name === 'MaxListenersExceededWarning') {
+    // Ignorar para recursos limitados
+  }
+});
+
+// Limpieza periódica de memoria
+setInterval(() => {
+  if (global.gc) {
+    global.gc();
+  }
+}, 30000);
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📱 Propuesta 4: Interfaz Minimalista para POS</h2>
+        <div class="propuesta">
+            <h3>Descripción</h3>
+            <p>Dashboard ultra-ligero para monitoreo básico en terminales POS.</p>
+            
+            <div class="implementacion">
+                <strong>Implementación:</strong>
+                <div class="codigo">
+// public/lite-dashboard.html
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;POS Sync Status&lt;/title&gt;
+    &lt;style&gt;
+        body { font-family: monospace; margin: 10px; background: #000; color: #0f0; }
+        .status { padding: 5px; margin: 2px 0; }
+        .online { color: #0f0; }
+        .offline { color: #f00; }
+        .pending { color: #ff0; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h2&gt;POS SYNC STATUS&lt;/h2&gt;
+    &lt;div id="status"&gt;&lt;/div&gt;
+    
+    &lt;script&gt;
+        function updateStatus() {
+            fetch('/api/status')
+                .then(r =&gt; r.json())
+                .then(data =&gt; {
+                    document.getElementById('status').innerHTML = `
+                        &lt;div class="${data.online ? 'online' : 'offline'}"&gt;
+                            Connection: ${data.online ? 'ONLINE' : 'OFFLINE'}
+                        &lt;/div&gt;
+                        &lt;div class="pending"&gt;
+                            Pending Sales: ${data.pendingCount}
+                        &lt;/div&gt;
+                        &lt;div&gt;
+                            Last Sync: ${data.lastSync || 'Never'}
+                        &lt;/div&gt;
+                        &lt;div&gt;
+                            Memory: ${data.memoryUsage}MB
+                        &lt;/div&gt;
+                    `;
+                })
+                .catch(() =&gt; {
+                    document.getElementById('status').innerHTML = 
+                        '&lt;div class="offline"&gt;SERVICE UNAVAILABLE&lt;/div&gt;';
+                });
+        }
+        
+        setInterval(updateStatus, 5000);
+        updateStatus();
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Propuesta 5: Configuración de Despliegue Ligero</h2>
+        <div class="propuesta">
+            <h3>Descripción</h3>
+            <p>Configuración Docker y systemd optimizada para recursos mínimos.</p>
+            
+            <div class="implementacion">
+                <strong>Dockerfile Ligero:</strong>
+                <div class="codigo">
+# Dockerfile.lite
+FROM node:18-alpine
+
+# Instalar solo dependencias esenciales
+RUN apk add --no-cache sqlite
+
+WORKDIR /app
+
+# Copiar solo archivos necesarios
+COPY package.json yarn.lock ./
+RUN yarn install --production --frozen-lockfile && \
+    yarn cache clean
+
+COPY src/ ./src/
+COPY public/ ./public/
+
+# Usuario no-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+USER nodejs
+
+# Límites de recursos
+ENV NODE_OPTIONS="--max-old-space-size=64"
+ENV NODE_ENV=production
+
+EXPOSE 3000
+
+CMD ["node", "src/main.lite.js"]
+                </div>
+
+                <strong>Servicio Systemd:</strong>
+                <div class="codigo">
+# /etc/systemd/system/pos-sync-lite.service
+[Unit]
+Description=POS Sync Service Lite
+After=network.target
+
+[Service]
+Type=simple
+User=pos
+WorkingDirectory=/opt/pos-sync
+ExecStart=/usr/bin/node --max-old-space-size=64 src/main.lite.js
+Restart=always
+RestartSec=10
+
+# Límites de recursos
+MemoryLimit=128M
+CPUQuota=50%
+
+# Variables de entorno
+Environment=NODE_ENV=production
+Environment=DB_PATH=/var/lib/pos-sync/sales.db
+
+[Install]
+WantedBy=multi-user.target
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Plan de Implementación</h2>
+        <table>
+            <tr>
+                <th>Fase</th>
+                <th>Duración</th>
+                <th>Actividades</th>
+                <th>Recursos</th>
+            </tr>
+            <tr>
+                <td>Fase 1: Base</td>
+                <td>1 semana</td>
+                <td>Migración a SQLite, configuración básica</td>
+                <td>1 dev</td>
+            </tr>
+            <tr>
+                <td>Fase 2: Sync</td>
+                <td>2 semanas</td>
+                <td>Sistema offline-first, compresión</td>
+                <td>1 dev</td>
+            </tr>
+            <tr>
+                <td>Fase 3: Optimización</td>
+                <td>1 semana</td>
+                <td>Tuning memoria, dashboard lite</td>
+                <td>1 dev</td>
+            </tr>
+            <tr>
+                <td>Fase 4: Testing</td>
+                <td>1 semana</td>
+                <td>Pruebas en POS reales, ajustes</td>
+                <td>1 dev + QA</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>💰 Estimación de Costos</h2>
+        <table>
+            <tr>
+                <th>Concepto</th>
+                <th>Costo Actual</th>
+                <th>Costo Optimizado</th>
+                <th>Ahorro</th>
+            </tr>
+            <tr>
+                <td>Recursos de servidor</td>
+                <td>$200/mes por POS</td>
+                <td>$50/mes por POS</td>
+                <td class="prioridad-alta">75%</td>
+            </tr>
+            <tr>
+                <td>Conectividad</td>
+                <td>$100/mes por POS</td>
+                <td>$30/mes por POS</td>
+                <td class="prioridad-alta">70%</td>
+            </tr>
+            <tr>
+                <td>Mantenimiento</td>
+                <td>$150/mes</td>
+                <td>$50/mes</td>
+                <td class="prioridad-media">67%</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Métricas de Éxito</h2>
+        <ul>
+            <li><strong>Memoria:</strong> Uso < 64MB en operación normal</li>
+            <li><strong>CPU:</strong> < 5% en idle, < 20% bajo carga</li>
+            <li><strong>Arranque:</strong> < 3 segundos desde inicio</li>
+            <li><strong>Offline:</strong> Operación 100% funcional sin internet</li>
+            <li><strong>Sync:</strong> < 30 segundos para lotes de 100 ventas</li>
+            <li><strong>Disponibilidad:</strong> > 99.5% uptime</li>
+        </ul>
+    </div>
+
+</body>
+</html>
